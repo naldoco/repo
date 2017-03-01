@@ -50,6 +50,10 @@ repositoryNotesABBREV="n"
 repositoryHaskell="$HOME/Escritorio/haskell"
 repositoryHaskellABBREV="h"
 
+usageMessage1="Usage: $0 [$repositoryNotesABBREV | $repositoryHaskellABBREV]  [pull | push]"
+usageMessage2="ie: $0 $repositoryNotesABBREV pull"
+usageMessage3="ie: $0 $repositoryNotesABBREV push"
+
 if [ `hostname` ==  "naldoco9" ] ; then
     # curro
     PC="naldoco9"
@@ -82,10 +86,11 @@ fi
 function usage()
 {
   echo
-  echo "Usage: $0 [$repositoryNotesABBREV | $repositoryHaskellABBREV] [pull | push]";
+  echo "$usageMessage1"
   echo
-  echo "ie: $0 n pull"
-  echo "ie: $0 n push"; echo
+  echo "$usageMessage2"
+  echo "$usageMessage3"
+  echo
   exit 1
 }
 
@@ -97,9 +102,23 @@ function processYN()
       echo "$@"
       "$@"
   elif [ "$answ" == "n" ] || [ "$answ" == "N" ] ; then
-    exit 0
+    :
   else
     processYN "$*"
+  fi
+}
+
+function processYAbort()
+{
+  echo "*** Do you want to process: ($*)?"
+  echo -n "Continue? [Y/(a)bort] " ; read answ
+  if [ "$answ" == "" ] || [ "$answ" == "y" ] || [ "$answ" == "Y" ]; then
+      echo "$@"
+      "$@"
+  elif [ "$answ" == "a" ] || [ "$answ" == "A" || [ "$answ" == "abort" ] ; then
+    exit 0
+  else
+    processYAbort "$*"
   fi
 }
 
@@ -162,6 +181,12 @@ else
 fi
 }
 
+function umountPendrive()
+{
+  umount "$1"
+  echo "Don't forget to take back your usb-pendrive!"
+}
+
 
 function pullOrPush()
 {
@@ -174,12 +199,12 @@ if [ "$ACC" == "push" ] ; then
   git log --graph --pretty=format:'%Cred%h%Creset - %s %Cgreen(%cr, %cn)%Creset %C(yellow)%d%Creset' --abbrev-commit --date=relative | head
 
   git remote -v show
-  processYN "git" "status" "-uall"
-  processYN "git" "add" "."
+  processYAbort "git" "status" "-uall"
+  processYAbort "git" "add" "."
 
-  processYN  "git" "commit" "-a" "-m" "$MM"
+  processYAbort  "git" "commit" "-a" "-m" "$MM"
   git log --oneline -5
-  processYN  "git" "push" "origin" "master"
+  processYAbort  "git" "push" "origin" "master"
   sync
 # copy index.db to the pendrive if the repo is notes.
 #  if [ "$REPO" == "notes" ] ; then
@@ -187,8 +212,8 @@ if [ "$ACC" == "push" ] ; then
 #    echo "Current .zim/index.db now in your pendrive."
 #  fi
 #  sync
-  processYN "git" "status"
-  processSkipYN "gitk"
+  processYAbort "git" "status"
+  processYN "umountPendrive" "$pendrive"
 elif [ "$ACC" == "pull" ] ; then
   cd $repository
   echo 'PENDRIVE: * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *'
@@ -197,15 +222,17 @@ elif [ "$ACC" == "pull" ] ; then
   echo 'LOCAL:    * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *'
   git log --graph --pretty=format:'%Cred%h%Creset - %s %Cgreen(%cr, %cn)%Creset %C(yellow)%d%Creset' --abbrev-commit --date=relative | head
   git remote -v show
-  processYN "git" "status"
-  processYN "git" "pull" "origin" "master"
+  processYAbort "git" "status"
+  processYAbort "git" "pull" "origin" "master"
   sync
-  processYN "git" "log" "--stat"
+  processYAbort "git" "log" "--stat"
+  processSkipYN "gitk"
 # copy index.db back to the PC, if the repo is notes
 #  if [ "$REPO" == "notes" ] ; then
 #    cp -p "$pendrive/SYNCHRO/.zim/index.db"  ".zim/"
 #    echo "Current ./zim/index.db now in your PC"
 #  fi
+  processYN "umountPendrive" "$pendrive"
 fi
 }
 
@@ -214,10 +241,3 @@ checkForMissingParameters
 pickRepo
 pickPullOrPush
 pullOrPush
-processSkipYN "gitk"
-processYN "umount" "$pendrive"
-echo "Don't forget to take back your usb-pendrive!"
-# echo
-#  echo "(zz is a external script...)
-#  echo 'zz: zim "RCC Notes" ; zim "english" ; zim "haskell"'
-#  processYN "zz"
