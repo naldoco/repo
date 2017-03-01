@@ -1,0 +1,223 @@
+#!/bin/bash
+# repo v 0.3
+# Copyright (c) 2011-2017, Reynaldo Cordero Corro
+# All rights reserved
+#
+# Redistribution and use in source and binary forms, with or without modification,
+# are permitted provided that the following conditions are met:
+#
+#  * Redistributions of source code must retain the above copyright notice, this
+#    list of conditions and the following disclaimer.
+#  * Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+# IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+# INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+# OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+# OF THE POSSIBILITY OF SUCH DAMAGE.
+
+# usage: repo repositoryABBREV ["pull" | "push"]
+
+## It's an application to synchronize local git repositories in several
+## computers using a pendrive.
+##
+## The pendrive has a bare repository of your local repository.
+##
+
+## Create a Bare repository the first time, like so:
+#
+# mkdir -p /media/KINGSTON/REPO
+# ( ... and mount your pendrive there)
+# cd ~/notes-zim-ok
+# git clone  --bare  .   /media/KINGSTON/REPO/notes-zim-ok.git/
+# git remote remove origin
+# git remote add origin "/media/KINGSTON/REPO/notes-zim-ok.git/"
+
+
+### CONFIGURE THIS:
+pendrive="/media/naldoco/KINGSTON"
+
+repositoryNotes="$HOME/notes-zim-ok"
+repositoryNotesABBREV="n"
+
+repositoryHaskell="$HOME/Escritorio/haskell"
+repositoryHaskellABBREV="h"
+
+if [ `hostname` ==  "naldoco9" ] ; then
+    # curro
+    PC="naldoco9"
+elif [ `hostname` == "naldoco7" ] ; then
+    # system76
+    PC="naldoco7"
+else
+    # otros
+    PC="naldocoX"
+fi
+### END of configuration
+
+
+### Take care of parameters
+#REPositorio
+REP="$1"
+#ACCión
+ACC="$2"
+MESSAGE="$3"
+
+if [ "$MESSAGE" == "" ]; then
+    MM="$PC"
+else
+    MM="$PC - $MESSAGE"
+fi
+
+### end of PARAMETERS
+
+### Functions
+function usage()
+{
+  echo
+  echo "Usage: $0 [$repositoryNotesABBREV | $repositoryHaskellABBREV] [pull | push]";
+  echo
+  echo "ie: $0 n pull"
+  echo "ie: $0 n push"; echo
+  exit 1
+}
+
+function processYN()
+{
+  echo "*** Do you want to process: ($*)?"
+  echo -n "Continue? [Y/n] " ; read answ
+  if [ "$answ" == "" ] || [ "$answ" == "y" ] || [ "$answ" == "Y" ]; then
+      echo "$@"
+      "$@"
+  elif [ "$answ" == "n" ] || [ "$answ" == "N" ] ; then
+    exit 0
+  else
+    processYN "$*"
+  fi
+}
+
+function processSkipYN()
+{
+  echo "*** Do you want to process: ($*)?"
+  echo -n "Continue? [S(kip)/y/n] " ; read answ
+  if [ "$answ" == "" ] || [ "$answ" == "s" ] || [ "$answ" == "s" ]; then
+    echo "Skipped."
+  elif [ "$answ" == "y" ] || [ "$answ" == "Y" ]; then
+    $*
+  elif [ "$answ" == "n" ] || [ "$answ" == "N" ] ; then
+    exit 0
+  else
+    processSkipYN "$*"
+  fi
+}
+
+
+function checkForMissingParameters()
+{
+# check for errors
+if [ -z "$REP" ] ; then
+    echo
+    echo "Please, enter missing parameters."
+  usage
+elif [ -z "$ACC" ] ; then
+    echo
+    echo "Please, enter missing parameter."
+  usage
+fi
+}
+
+
+function pickRepo()
+{
+if [ "$REP" == "$repositoryNotesABBREV" ] ; then
+    repository="$repositoryNotes"
+elif [ "$REP" == "$repositoryHaskellABBREV" ] ; then
+    repository="$repositoryHaskell"
+else
+  # ERROR
+    echo
+    echo "ERROR: parameter incorrect ($REP)."
+    usage
+fi
+}
+
+function pickPullOrPush()
+{
+if [ "$ACC" == "pull" ] ; then
+    :  # no-op command.
+elif [ "$ACC" == "push" ] ; then
+    :  # no-op command.
+else
+  # ERROR
+    echo
+    echo "ERROR: parameter incorrect ($ACC)."
+    usage
+fi
+}
+
+
+function pullOrPush()
+{
+if [ "$ACC" == "push" ] ; then
+  cd $repository
+  git fetch
+  echo 'PENDRIVE: * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *'
+  git log --graph --pretty=format:'%Cred%h%Creset - %s %Cgreen(%cr, %cn)%Creset %C(yellow)%d%Creset' --abbrev-commit --date=relative origin/master | head -1
+  echo 'LOCAL   : * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *'
+  git log --graph --pretty=format:'%Cred%h%Creset - %s %Cgreen(%cr, %cn)%Creset %C(yellow)%d%Creset' --abbrev-commit --date=relative | head
+
+  git remote -v show
+  processYN "git" "status" "-uall"
+  processYN "git" "add" "."
+
+  processYN  "git" "commit" "-a" "-m" "$MM"
+  git log --oneline -5
+  processYN  "git" "push" "origin" "master"
+  sync
+# copy index.db to the pendrive if the repo is notes.
+#  if [ "$REPO" == "notes" ] ; then
+#    cp -p .zim/index.db  "$pendrive/SYNCHRO/.zim"
+#    echo "Current .zim/index.db now in your pendrive."
+#  fi
+#  sync
+  processYN "git" "status"
+  processSkipYN "gitk"
+elif [ "$ACC" == "pull" ] ; then
+  cd $repository
+  echo 'PENDRIVE: * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *'
+  git fetch
+  git log --graph --pretty=format:'%Cred%h%Creset - %s %Cgreen(%cr, %cn)%Creset %C(yellow)%d%Creset' --abbrev-commit --date=relative origin/master | head -1
+  echo 'LOCAL:    * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *'
+  git log --graph --pretty=format:'%Cred%h%Creset - %s %Cgreen(%cr, %cn)%Creset %C(yellow)%d%Creset' --abbrev-commit --date=relative | head
+  git remote -v show
+  processYN "git" "status"
+  processYN "git" "pull" "origin" "master"
+  sync
+  processYN "git" "log" "--stat"
+# copy index.db back to the PC, if the repo is notes
+#  if [ "$REPO" == "notes" ] ; then
+#    cp -p "$pendrive/SYNCHRO/.zim/index.db"  ".zim/"
+#    echo "Current ./zim/index.db now in your PC"
+#  fi
+fi
+}
+
+### PROCESSING
+checkForMissingParameters
+pickRepo
+pickPullOrPush
+pullOrPush
+processSkipYN "gitk"
+processYN "umount" "$pendrive"
+echo "Don't forget to take back your usb-pendrive!"
+# echo
+#  echo "(zz is a external script...)
+#  echo 'zz: zim "RCC Notes" ; zim "english" ; zim "haskell"'
+#  processYN "zz"
