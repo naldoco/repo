@@ -54,16 +54,21 @@ usageMessage1="Usage: $0 [$repositoryNotesABBREV | $repositoryHaskellABBREV]  [p
 usageMessage2="ie: $0 $repositoryNotesABBREV pull"
 usageMessage3="ie: $0 $repositoryNotesABBREV push"
 
-if [ `hostname` ==  "naldoco9" ] ; then
+if [ `hostname` ==  "pc9" ] ; then
     # curro
-    PC="naldoco9"
+    PC="▹pc9"
 elif [ `hostname` == "naldoco7" ] ; then
     # system76
-    PC="naldoco7"
+    PC="▸pc7"
 else
     # otros
-    PC="naldocoX"
+    PC="•pcX"
 fi
+
+# "$HOME/.gitconfig"
+#  [alias]
+#     log1 = log --pretty=format:'%C(yellow)%h %C(reset) %Cgreen(%cr)%C(reset) %s %C(blue)[%cn] %Creset %C(red)%d' --decorate --numstat
+
 ### END of configuration
 
 
@@ -108,32 +113,34 @@ function processYN()
   fi
 }
 
-function processYAbort()
+function processYNAbort()
 {
   echo "*** Do you want to process: ($*)?"
-  echo -n "Continue? [Y/(a)bort] " ; read answ
+  echo -n "Continue? [Y/n/(a)bort] " ; read answ
   if [ "$answ" == "" ] || [ "$answ" == "y" ] || [ "$answ" == "Y" ]; then
       echo "$@"
       "$@"
+  elif [ "$answ" == "n" ] || [ "$answ" == "N" ] ; then
+    : 
   elif [ "$answ" == "a" ] || [ "$answ" == "A" || [ "$answ" == "abort" ] ; then
     exit 0
   else
-    processYAbort "$*"
+    processYNAbort "$*"
   fi
 }
 
-function processSkipYN()
+function processNYAbort()
 {
   echo "*** Do you want to process: ($*)?"
-  echo -n "Continue? [S(kip)/y/n] " ; read answ
-  if [ "$answ" == "" ] || [ "$answ" == "s" ] || [ "$answ" == "s" ]; then
+  echo -n "Continue? [N/y/a(bort)] " ; read answ
+  if [ "$answ" == "" ] || [ "$answ" == "n" ] || [ "$answ" == "N" ]; then
     echo "Skipped."
   elif [ "$answ" == "y" ] || [ "$answ" == "Y" ]; then
     $*
-  elif [ "$answ" == "n" ] || [ "$answ" == "N" ] ; then
+  elif [ "$answ" == "a" ] || [ "$answ" == "A" || [ "$answ" == "abort" ] ; then
     exit 0
   else
-    processSkipYN "$*"
+    processNYAbort "$*"
   fi
 }
 
@@ -194,17 +201,16 @@ if [ "$ACC" == "push" ] ; then
   cd $repository
   git fetch
   echo 'PENDRIVE: * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *'
-  git log --graph --pretty=format:'%Cred%h%Creset - %s %Cgreen(%cr, %cn)%Creset %C(yellow)%d%Creset' --abbrev-commit --date=relative origin/master | head -1
+  git log --graph --pretty=format:'%C(yellow)%h %C(reset) %Cgreen(%cr)%C(reset) %s %C(blue)[%cn] %C(reset) %C(red)%d%C(reset)' --abbrev-commit --date=relative origin/master | head -1
   echo 'LOCAL   : * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *'
-  git log --graph --pretty=format:'%Cred%h%Creset - %s %Cgreen(%cr, %cn)%Creset %C(yellow)%d%Creset' --abbrev-commit --date=relative | head
-
+  git log --graph --pretty=format:'%C(yellow)%h %C(reset) %Cgreen(%cr)%C(reset) %s %C(blue)[%cn] %C(reset) %C(red)%d%C(reset)' --abbrev-commit --date=relative | head
   git remote -v show
-  processYAbort "git" "status" "-uall"
-  processYAbort "git" "add" "."
+  processYNAbort "git" "status" "-uall"
+  processYNAbort "git" "add" "."
 
-  processYAbort  "git" "commit" "-a" "-m" "$MM"
+  processYNAbort  "git" "commit" "-a" "-m" "$MM"
   git log --oneline -5
-  processYAbort  "git" "push" "origin" "master"
+  processYNAbort  "git" "push" "origin" "master"
   sync
 # copy index.db to the pendrive if the repo is notes.
 #  if [ "$REPO" == "notes" ] ; then
@@ -212,21 +218,23 @@ if [ "$ACC" == "push" ] ; then
 #    echo "Current .zim/index.db now in your pendrive."
 #  fi
 #  sync
-  processYAbort "git" "status"
+  processYNAbort "git" "status"
   processYN "umountPendrive" "$pendrive"
 elif [ "$ACC" == "pull" ] ; then
   cd $repository
-  echo 'PENDRIVE: * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *'
   git fetch
-  git log --graph --pretty=format:'%Cred%h%Creset - %s %Cgreen(%cr, %cn)%Creset %C(yellow)%d%Creset' --abbrev-commit --date=relative origin/master | head -1
+  echo 'PENDRIVE: * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *'
+  git log --graph --pretty=format:'%C(yellow)%h %C(reset) %Cgreen(%cr)%C(reset) %s %C(blue)[%cn] %C(reset) %C(red)%d%C(reset)' --abbrev-commit --date=relative origin/master | head -1
   echo 'LOCAL:    * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *'
-  git log --graph --pretty=format:'%Cred%h%Creset - %s %Cgreen(%cr, %cn)%Creset %C(yellow)%d%Creset' --abbrev-commit --date=relative | head
+  git log --graph --pretty=format:'%C(yellow)%h %C(reset) %Cgreen(%cr)%C(reset) %s %C(blue)[%cn] %C(reset) %C(red)%d%C(reset)' --abbrev-commit --date=relative | head
+
   git remote -v show
-  processYAbort "git" "status"
-  processYAbort "git" "pull" "origin" "master"
+  processYNAbort "git" "status"
+  processYNAbort "git" "pull" "origin" "master"
   sync
-  processYAbort "git" "log" "--stat"
-  processSkipYN "gitk"
+  echo "'log1' is a git alias"
+  processYN "git" "log1" "-5"
+  processNYAbort "gitk"
 # copy index.db back to the PC, if the repo is notes
 #  if [ "$REPO" == "notes" ] ; then
 #    cp -p "$pendrive/SYNCHRO/.zim/index.db"  ".zim/"
